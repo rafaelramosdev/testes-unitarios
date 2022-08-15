@@ -22,7 +22,8 @@ describe('Create User Use Case', () => {
 
     expect(createdUser).toHaveProperty('id')
   })
-  it('should be able to create a new user', () => {
+
+  it('should not be able to create an user with an existent email', () => {
     expect(async () => {
       const user = {
         name: 'John Doe',
