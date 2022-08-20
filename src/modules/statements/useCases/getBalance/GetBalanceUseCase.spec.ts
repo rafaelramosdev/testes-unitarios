@@ -1,5 +1,4 @@
 import { InMemoryUsersRepository } from "../../../users/repositories/in-memory/InMemoryUsersRepository";
-import { AuthenticateUserUseCase } from "../../../users/useCases/authenticateUser/AuthenticateUserUseCase";
 import { CreateUserUseCase } from "../../../users/useCases/createUser/CreateUserUseCase";
 import { OperationType } from "../../entities/Statement";
 import { InMemoryStatementsRepository } from "../../repositories/in-memory/InMemoryStatementsRepository";
@@ -11,8 +10,8 @@ let getBalanceUseCase: GetBalanceUseCase;
 let inMemoryStatementsRepository: InMemoryStatementsRepository;
 let inMemoryUsersRepository: InMemoryUsersRepository;
 let createUserUseCase: CreateUserUseCase;
-let authenticateUserUseCase: AuthenticateUserUseCase;
 let createStatementUseCase: CreateStatementUseCase;
+
 
 describe('Get Balance Use Case', () => {
   beforeEach(() => {
@@ -20,39 +19,72 @@ describe('Get Balance Use Case', () => {
     inMemoryUsersRepository = new InMemoryUsersRepository();
     getBalanceUseCase = new GetBalanceUseCase(inMemoryStatementsRepository, inMemoryUsersRepository);
     createUserUseCase = new CreateUserUseCase(inMemoryUsersRepository);
-    authenticateUserUseCase = new AuthenticateUserUseCase(inMemoryUsersRepository);
     createStatementUseCase = new CreateStatementUseCase(inMemoryUsersRepository, inMemoryStatementsRepository);
-  })
+  });
 
-  it('should be able to get the balance', async () => {
-    const user = {
-      name: 'John Doe',
-      email: 'john@doe.com',
-      password: 'password',
-    }
+  it("should be able to get the user account balance", async () => {
+    const user01 = await createUserUseCase.execute({
+      name: "User 01",
+      email: "user01@test.com",
+      password: "1234"
+    })
 
-    await createUserUseCase.execute(user);
+    const user02 = await createUserUseCase.execute({
+      name: "User 02",
+      email: "user02@test.com",
+      password: "1234"
+    })
 
-    const token = await authenticateUserUseCase.execute(user);
+    await createStatementUseCase.execute({
+      user_id: user01.id as string,
+      type: OperationType.DEPOSIT,
+      amount: 200,
+      description: "Depositing $200",
+    });
 
-    const statement = {
-      user_id: token.user.id as string,
+    await createStatementUseCase.execute({
+      user_id: user01.id as string,
+      type: OperationType.WITHDRAW,
+      amount: 30,
+      description: "Withdrawing $30",
+    });
+
+    await createStatementUseCase.execute({
+      user_id: user02.id as string,
+      sender_id: user01.id as string,
+      type: OperationType.TRANSFER,
+      amount: 50,
+      description: "Transfer $50 to User 02",
+    });
+
+    await createStatementUseCase.execute({
+      user_id: user02.id as string,
       type: OperationType.DEPOSIT,
       amount: 100,
-      description: 'deposit statement test'
-    }
+      description: "Depositing $100",
+    });
 
-    await createStatementUseCase.execute(statement)
+    await createStatementUseCase.execute({
+      user_id: user01.id as string,
+      sender_id: user02.id as string,
+      type: OperationType.TRANSFER,
+      amount: 100,
+      description: "Transfer $100 to User 01",
+    });
 
-    const balance = await getBalanceUseCase.execute({ user_id: token.user.id as string });
+    const result = await getBalanceUseCase.execute({
+      user_id: user01.id as string
+    });
 
-    expect(balance).toHaveProperty('balance')
-    expect(balance.balance).toEqual(100)
-  })
+    expect(result).toHaveProperty("balance");
+    expect(result.balance).toBeGreaterThan(0);
+  });
 
-  it("should not be able to get the balance from a nonexistent user", () => {
+  it("should not be able to get the account balance from an inexistent user", () => {
     expect(async () => {
-      await getBalanceUseCase.execute({ user_id: 'nonexistent user' });
-    }).rejects.toBeInstanceOf(GetBalanceError)
-  })
+      await getBalanceUseCase.execute({
+        user_id: "inexistentId"
+      });
+    }).rejects.toBeInstanceOf(GetBalanceError);
+  });
 })

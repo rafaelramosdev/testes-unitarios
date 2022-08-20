@@ -22,64 +22,69 @@ describe('Get Statement Operation Use Case', () => {
       inMemoryUsersRepository,
       inMemoryStatementsRepository
     );
-    authenticateUserUseCase = new AuthenticateUserUseCase(inMemoryUsersRepository);
     createUserUseCase = new CreateUserUseCase(inMemoryUsersRepository);
+    authenticateUserUseCase = new AuthenticateUserUseCase(inMemoryUsersRepository);
     createStatementUseCase = new CreateStatementUseCase(
       inMemoryUsersRepository,
       inMemoryStatementsRepository
     );
-  })
+  });
 
-  it('should be able to get a statement operation', async () => {
+  it("should be able to get a statement operation", async () => {
     const user = {
-      name: 'John Doe',
-      email: 'john@doe.com',
-      password: 'password',
-    }
-
+      name: "User Test",
+      email: "user@test.com",
+      password: "password",
+    };
     await createUserUseCase.execute(user);
 
     const token = await authenticateUserUseCase.execute({
       email: user.email,
-      password: user.password
-    })
+      password: user.password,
+    });
 
-    const statement = {
+    const statement = await createStatementUseCase.execute({
       user_id: token.user.id as string,
       type: OperationType.DEPOSIT,
-      amount: 100,
-      description: 'deposit statement test'
-    }
+      amount: 300,
+      description: "Depositing $300",
+    });
 
-    const createdDepositStatement = await createStatementUseCase.execute(statement);
+    const statementInfo = await getStatementOperationUseCase.execute({
+      user_id: token.user.id as string,
+      statement_id: statement.id as string,
+    });
 
-    const statementOperation = await getStatementOperationUseCase.execute({ user_id: token.user.id as string, statement_id: createdDepositStatement.id as string})
+    expect(statementInfo).toHaveProperty("id");
+  });
 
-    expect(statementOperation).toHaveProperty('id')
-  })
-
-  it("should not be able to get a statement operation for a nonexistent user", () => {
+  it("should not be able to get a statement operation for an inexistent user", () => {
     expect(async () => {
-      await getStatementOperationUseCase.execute({ user_id: 'nonexistent user', statement_id: 'nonexistent statement' })
-    }).rejects.toBeInstanceOf(GetStatementOperationError.UserNotFound)
-  })
+      await getStatementOperationUseCase.execute({
+        user_id: "inexistent_user",
+        statement_id: "statement_id",
+      });
+    }).rejects.toBeInstanceOf(GetStatementOperationError.UserNotFound);
+  });
 
-  it("should not be able to get a nonexistent statement operation", () => {
+  it("should not be able to get an inexistent statement operation", () => {
     expect(async () => {
       const user = {
-        name: 'John Doe',
-        email: 'john@doe.com',
-        password: 'password',
-      }
-
+        name: "User Test",
+        email: "user@test.com",
+        password: "password",
+      };
       await createUserUseCase.execute(user);
 
       const token = await authenticateUserUseCase.execute({
         email: user.email,
-        password: user.password
-      })
+        password: user.password,
+      });
 
-      await getStatementOperationUseCase.execute({ user_id: token.user.id as string, statement_id: 'nonexistent statement' })
-    }).rejects.toBeInstanceOf(GetStatementOperationError.StatementNotFound)
-  })
+      await getStatementOperationUseCase.execute({
+        user_id: token.user.id as string,
+        statement_id: "inexistent_statement",
+      });
+    }).rejects.toBeInstanceOf(GetStatementOperationError.StatementNotFound);
+  });
 })

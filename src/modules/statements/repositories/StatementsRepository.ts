@@ -15,10 +15,32 @@ export class StatementsRepository implements IStatementsRepository {
 
   async create({
     user_id,
+    sender_id,
     amount,
     description,
     type
   }: ICreateStatementDTO): Promise<Statement> {
+    if (type === 'transfer') {
+      const senderStatement = this.repository.create({
+        user_id: sender_id,
+        amount,
+        description,
+        type
+      });
+
+      await this.repository.save(senderStatement);
+
+      const receiverStatement = this.repository.create({
+        user_id,
+        sender_id,
+        amount,
+        description,
+        type
+      });
+
+      return this.repository.save(receiverStatement);
+    }
+
     const statement = this.repository.create({
       user_id,
       amount,

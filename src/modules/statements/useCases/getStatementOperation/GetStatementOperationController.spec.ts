@@ -13,56 +13,61 @@ describe('Get Statement Operation Controller', () => {
     await connection.runMigrations();
 
     const id = uuid();
-    const password = await hash("password", 8);
+    const password = await hash("1234", 8);
 
     await connection.query(`
       INSERT INTO users
         (id, name, email, password, created_at, updated_at)
       VALUES
-        ('${id}', 'John Doe', 'john@doe.com', '${password}', 'now()', 'now()')
+        ('${id}', 'Name Test', 'name@test.com', '${password}', 'now()', 'now()')
     `);
-  })
+  });
 
   afterAll(async () => {
     await connection.dropDatabase();
     await connection.close();
   })
 
-  it('should be able to get a statement operation', async () => {
-    const tokenResponse = await request(app).post('/api/v1/sessions').send({
-      email: 'john@doe.com',
-      password: 'password',
-    })
-
-    const { token } = tokenResponse.body
-
-    const depositStatementResponse = await request(app).post('/api/v1/statements/deposit').send({
-      amount: 100,
-      description: 'deposit statement test'
-    }).set({
-      Authorization: `Bearer ${token}`,
-    })
-
-    const statementOperationResponse = await request(app).get(`/api/v1/statements/${depositStatementResponse.body.id}`).set({
-      Authorization: `Bearer ${token}`,
+  it("should be able to get a statement operation", async () => {
+    const responseToken = await request(app).post("/api/v1/sessions")
+    .send({
+      email: "name@test.com",
+      password: "1234",
     });
 
-    expect(statementOperationResponse.status).toBe(200);
-  })
+    const { token } = responseToken.body;
 
-  it("should not be able to get a nonexistent statement operation", async () => {
-    const tokenResponse = await request(app).post('/api/v1/sessions').send({
-      email: 'john@doe.com',
-      password: 'password',
+    const statement = await request(app).post("/api/v1/statements/deposit")
+    .send({
+      amount: 300,
+      description: "Depositing $300",
     })
-
-    const { token } = tokenResponse.body
-
-    const statementOperationResponse = await request(app).get(`/api/v1/statements/${uuid()}`)
     .set({
       Authorization: `Bearer ${token}`,
     });
 
-    expect(statementOperationResponse.status).toBe(404);
-  })
+    const response = await request(app).get(`/api/v1/statements/${statement.body.id}`)
+    .set({
+      Authorization: `Bearer ${token}`,
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("should not be able to get a non-existing statement operation", async () => {
+    const responseToken = await request(app).post("/api/v1/sessions")
+    .send({
+      email: "name@test.com",
+      password: "1234",
+    });
+
+    const { token } = responseToken.body;
+
+    const response = await request(app).get(`/api/v1/statements/${uuid()}`)
+    .set({
+      Authorization: `Bearer ${token}`,
+    });
+
+    expect(response.status).toBe(404);
+  });
 })
